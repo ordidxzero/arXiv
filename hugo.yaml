@@ -1,4 +1,4 @@
-baseURL: http://0.0.0.0:1313/
+baseURL: https://arxiv.yujunheo.me/
 title: Papers
 theme: hugo-book
 
