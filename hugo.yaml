@@ -1,18 +1,19 @@
 baseURL: http://0.0.0.0:1313/
-title: Documentation
+title: Papers
 theme: hugo-book
-
-copyright: "This is a copyright placeholder"
 
 # Book configuration
 disablePathToLower: true
-enableGitInfo: true
 
 # Needed for mermaid/katex shortcodes
 markup:
   goldmark:
     renderer:
       unsafe: true
+    extensions:
+      cjk:
+        enable: true
+        escapedSpace: true
   tableOfContents:
     startLevel: 1
   highlight:
@@ -36,21 +37,6 @@ markup:
 #     contentDir: content.he
 #     languageDirection: rtl
 #     weight: 3
-
-menu:
-  home:
-    - name: "Documentation"
-      pageRef: "/docs/"
-      weight: 10
-    - name: "Github"
-      url: "https://github.com/alex-shpak/hugo-book/"
-      weight: 20
-
-  # before: []
-  after:
-    - name: "Github"
-      url: "https://github.com/alex-shpak/hugo-book"
-      weight: 10
 
 taxonomies:
   tag: tags
@@ -92,7 +78,7 @@ params:
   # - In git information
   # - In blog posts
   # https://gohugo.io/functions/time/format/
-  # BookDateFormat: "January 2, 2006"
+  BookDateFormat: "2006년 01월 02일"
 
   # (Optional, default true) Enables search function with flexsearch,
   # Index is built on fly, therefore it might slowdown your website.
