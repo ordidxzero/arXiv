@@ -5,6 +5,7 @@
 //             no untranslated paragraphs, no section that looks much shorter than the original
 //   hugo      front matter (title, linkTitle, url "/<id>/"), no H1 in the body, figures as {{< image >}} served from
 //             static/<id>/figures/, math as {{< katex >}}, no relative links, Goldmark bold/~ fixes applied
+//   style     (warnings) paragraphs with many long inline glosses, idioms translated word for word
 import fs from 'node:fs';
 import path from 'node:path';
 import { fixMarkdown } from './markdown-fixes.mjs';
@@ -233,6 +234,63 @@ function main() {
       if (args.includes('--ratios')) console.log(`ratio ${sec.number}: ${ratio.toFixed(2)}`);
     }
   }
+
+  // 11. Readability (warnings only, see style-guide.md): paragraphs buried under long inline glosses, and idioms
+  // translated word for word.
+  // A gloss = a top-level parenthesis with at least GLOSS_MIN Hangul characters (shorter ones are mostly "(정적)"-style
+  // translations of a single word).
+  const GLOSS_MIN = 10;
+  const GLOSS_MAX = 35;
+  const GLOSSES_PER_PARAGRAPH = 4;
+  const glossLengths = (text) => {
+    const found = [];
+    const stack = [];
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '(') stack.push(i);
+      else if (text[i] === ')' && stack.length) {
+        const open = stack.pop();
+        const hangul = (text.slice(open + 1, i).match(/[가-힣]/g) || []).length;
+        if (!stack.length && hangul >= GLOSS_MIN) found.push(hangul);
+      }
+    }
+    return found;
+  };
+  let pileups = 0;
+  let paraStart = 0;
+  const checkGlosses = (end) => {
+    if (paraStart + 1 >= bodyEnd || paraStart + 1 < bodyStart || ++pileups > 10) return;
+    const glosses = glossLengths(proseLines.slice(paraStart, end).join(' '));
+    const at = `line ${paraStart + 1}`;
+    if (glosses.length >= GLOSSES_PER_PARAGRAPH) warnings.push(`${at}: ${glosses.length} inline glosses in one paragraph — keep the essential ones and move the rest into a 역주 block or to the term's first use in the body`);
+    else if (glosses.some((n) => n > GLOSS_MAX)) warnings.push(`${at}: an inline gloss of ${Math.max(...glosses)} Hangul characters — a gloss is one short clause; move the explanation into a 역주 block`);
+    else pileups--;
+  };
+  proseLines.forEach((l, i) => {
+    if (!l.trim()) {
+      checkGlosses(i);
+      paraStart = i + 1;
+    }
+  });
+  checkGlosses(proseLines.length);
+
+  const TRANSLATIONESE = [
+    [/결정적으로/, '결정적으로 (Crucially) → 특히 / 무엇보다 / 생략'],
+    [/중요하게도/, '중요하게도 (Importantly) → 중요한 점은 / 생략'],
+    [/흥미롭게도/, '흥미롭게도 (Interestingly) → 눈여겨볼 점은 / 생략'],
+    [/약속(?:하|한|했)/, '약속하다 (promise) → 기대할 수 있다 / 가능성을 보여 주다'],
+    [/(?:한|몇)\s*자릿수/, '한 자릿수 (an order of magnitude) → 약 10배'],
+    [/에 있어서/, '~에 있어서 → ~에서'],
+    [/되어진/, '~되어진다 → ~된다'],
+  ];
+  let idioms = 0;
+  proseLines.forEach((l, i) => {
+    if (i + 1 >= bodyEnd || i + 1 < bodyStart) return;
+    for (const [re, hint] of TRANSLATIONESE) {
+      const m = l.match(re);
+      if (m && ++idioms <= 15) warnings.push(`line ${i + 1}: translationese "${m[0]}" — ${hint}`);
+    }
+  });
+  if (idioms > 15) warnings.push(`… ${idioms - 15} more translationese expressions`);
 
   const hangulTotal = (md.match(/[가-힣]/g) || []).length;
   console.log(`Checked ${path.relative(process.cwd(), mdPath)}: ${lines.length} lines, ${headings.length} headings, ${seen.size} images, ${mathCount} math, ${hangulTotal} Hangul characters`);

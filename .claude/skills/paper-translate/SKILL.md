@@ -54,7 +54,7 @@ Exit code 2 means there's no LaTeX source: follow `references/pdf-fallback.md` i
 
 ### 3. Build the glossary
 
-Skim the abstract, introduction and section titles, then write `work/glossary.md` (English | 번역 | 설명 | 비고) for the paper's key terms, following the rules in `references/style-guide.md`. The 설명 column is the one-clause gloss to give on first use for terms this reader may not know well (older models, training tricks, decoding methods); leave it empty for basics they already know. Settling terms up front is what keeps a 30-page translation consistent across parts and across sessions. Add terms as you meet them later.
+Skim the abstract, introduction and section titles, then write `work/glossary.md` (English | 번역 | 설명 | 비고) for the paper's key terms, following the rules in `references/style-guide.md`. The 설명 column is the one-clause gloss to give on first use for terms this reader may not know well (older models, training tricks, decoding methods); leave it empty for basics they already know. Below the terms, start a notation table (기호 | 뜻 | 쓰인 곳 | 역주) for the paper's symbols, one row per meaning, so a symbol that the paper reuses for different things — or a quantity that it names with two symbols — is visible before it confuses the reader. Settling terms up front is what keeps a 30-page translation consistent across parts and across sessions. Add terms and symbols as you meet them later.
 
 ### 4. Translate part by part, in order
 
@@ -95,6 +95,9 @@ Translation rules that apply everywhere (details in the reference files):
 - **Free translation for the reader.** Translate meaning, not sentence structure: split and reorder sentences, make implicit reasoning explicit, say formulas in words, unpack shorthand. Natural Korean academic register (`~한다/~이다`).
 - **Nothing lost or changed.** Every claim, detail, number, setting and limitation of the original survives, with the same strength of claim (hedges stay hedges). Keep one translated paragraph per original paragraph, and re-read the original paragraph after translating it to catch omissions.
 - **Additions are marked.** Short explanations go inline in parentheses on first use; anything longer goes in a `> **역주.** …` block right after the paragraph, caption or equation it explains — so the reader can always tell the authors' words from the translator's. Add only where this reader would stall; no opinions about the paper.
+- **Glosses must not bury the sentence.** One short clause per gloss, at most two glossed terms per sentence and about three per paragraph. A term-dense paragraph (the abstract, the start of the introduction) keeps short glosses and moves the rest into one 역주 block after it, or defers them to the term's first use in the body.
+- **Explain confusing notation and numbers.** When the paper reuses a symbol for something else, names one quantity with two symbols, or reports a number that seems to contradict another (50Hz vs. a 19.1Hz "effective rate"), add a 역주 where the reader would be misled. Keep the math as written and check the glossary's notation table before writing any 역주 about a symbol.
+- **No word-for-word idioms.** Sentence adverbs and idioms like "Crucially" (결정적으로), "promise" (약속하다), "an order of magnitude" (한 자릿수) have natural Korean equivalents — see the 번역투 tables in the style guide.
 - First use of a translated technical term gets the English (and the glossary gloss, if any) in parentheses; follow the glossary.
 - Math, numbers, table data, code, model/dataset names, and author names stay as they are.
 - Headings are not translated: section/subsection/`\paragraph` titles, Abstract, Acknowledgements and References keep the original text and numbering (`## 3 Model Architecture`). Prose, captions and in-text references (`3절`, `그림 2`) are translated as usual.
@@ -124,7 +127,15 @@ Fix things in the part files and re-assemble; `translation.ko.md` is overwritten
 node .claude/skills/paper-translate/scripts/check.mjs papers/<id>
 ```
 
-It verifies the content — every numbered section has a heading in the right order, every figure/table number has a caption, the references section comes last, no raw LaTeX is left in prose, no long paragraph is still in English, no section looks much shorter than the original — and the Hugo rendering: front matter (`title`, `linkTitle`, `url: "/<id>/"`), no H1 in the body, images as shortcodes whose files exist in `static/<id>/figures/`, no relative links, no leftover `$`, katex tags paired, no `|` inside math in a table row, bold/`~` fixes applied. Fix each ERROR in the relevant part file, re-assemble, and re-run until it prints `OK`. Look at WARN lines too — an unused image usually means a figure was skipped.
+It verifies the content — every numbered section has a heading in the right order, every figure/table number has a caption, the references section comes last, no raw LaTeX is left in prose, no long paragraph is still in English, no section looks much shorter than the original — and the Hugo rendering: front matter (`title`, `linkTitle`, `url: "/<id>/"`), no H1 in the body, images as shortcodes whose files exist in `static/<id>/figures/`, no relative links, no leftover `$`, katex tags paired, no `|` inside math in a table row, bold/`~` fixes applied. Fix each ERROR in the relevant part file, re-assemble, and re-run until it prints `OK`. Look at WARN lines too — an unused image usually means a figure was skipped, and the readability warnings (gloss pile-ups, translationese) point at sentences to rewrite.
+
+Then read `translation.ko.md` once from start to finish as the reader would — the check can't see the problems that only show up across sections:
+- a symbol whose meaning changes, or two symbols for one quantity, with no 역주 where it happens (compare against the notation table);
+- a 역주 that defines a symbol in a way a later section contradicts;
+- numbers that look inconsistent across sections (rates, speedups, `%` vs. `%p`) with no 역주 reconciling them;
+- the same sentence-initial connective repeated, or a paragraph whose glosses make it hard to find the subject.
+
+Fix them in the part files and re-assemble.
 
 ### 7. Publish and clean up
 
