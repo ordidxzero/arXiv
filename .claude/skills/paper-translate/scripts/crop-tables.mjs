@@ -262,7 +262,7 @@ async function main() {
     }
   }
   fs.writeFileSync(path.join(paperDir, 'work', 'tables.json'), `${JSON.stringify(results, null, 1)}\n`);
-  await doc.destroy();
+  await doc.destroy?.();
 }
 
 main().catch((err) => {
