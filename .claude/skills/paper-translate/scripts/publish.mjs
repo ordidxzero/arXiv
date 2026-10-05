@@ -3,7 +3,9 @@
 // <site>/static/<id>/figures/ (assemble.mjs) and referenced as /<id>/figures/<name>, so this:
 //   1. runs check.mjs and aborts if it fails (it needs work/outline.json and flat.tex, deleted below);
 //   2. places translation.ko.md at <site>/content/docs/<id>.md and builds the site in memory with hugo
-//      (KaTeX errors only show up here); on failure the page is taken out again and nothing else changes;
+//      (KaTeX errors only show up here); on failure the page is taken out again and nothing else changes.
+//      ensure-hugo.mjs checks out the theme and finds or downloads a hugo the theme accepts; without one the
+//      script stops (--skip-build publishes without the build test, only when the user agreed to that);
 //   3. deletes everything in <paper-dir> (paper.pdf, source/, tables/, work/ with the part files) and <paper-dir> itself;
 //   4. deletes files in static/<id>/figures/ that the page does not reference (staged earlier, then dropped).
 // --dry-run runs the check and the build test (the page is placed only for the build and removed afterwards) and lists
@@ -13,10 +15,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { ensureHugo } from './ensure-hugo.mjs';
 import { figuresDirFor, publishPathFor, rawLocalRefs, resolveRef, siteRoot } from './hugo-site.mjs';
 
 function usage() {
-  console.log('Usage: publish.mjs <paper-dir> [--dry-run]   (e.g. ./papers/1706.03762)');
+  console.log('Usage: publish.mjs <paper-dir> [--dry-run] [--skip-build]   (e.g. ./papers/1706.03762)');
   console.log('  Moves translation.ko.md to content/docs/<id>.md, then deletes <paper-dir> and the');
   console.log('  unreferenced files in static/<id>/figures/.');
 }
@@ -53,12 +56,11 @@ function runCheck(paperDir) {
   return check.status === 0;
 }
 
-// Builds the whole site in memory. Returns true on success, null when hugo is not installed. The cache goes to the
+// Builds the whole site in memory with `hugo` (from ensure-hugo.mjs). Returns true on success. The cache goes to the
 // temp dir: KaTeX rendering needs a writable cache, and the default one (~/Library/Caches) may be off limits.
-function runHugo(site) {
+function runHugo(site, hugo) {
   const cacheDir = path.join(os.tmpdir(), 'hugo_cache');
-  const build = spawnSync('hugo', ['--source', site, '--renderToMemory', '--logLevel', 'error', '--cacheDir', cacheDir], { encoding: 'utf8' });
-  if (build.error?.code === 'ENOENT') return null;
+  const build = spawnSync(hugo, ['--source', site, '--renderToMemory', '--logLevel', 'error', '--cacheDir', cacheDir], { encoding: 'utf8' });
   if (build.status !== 0) {
     process.stdout.write(build.stdout);
     process.stderr.write(build.stderr);
@@ -69,7 +71,8 @@ function runHugo(site) {
 function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
-  const positional = args.filter((a) => a !== '--dry-run');
+  const skipBuild = args.includes('--skip-build');
+  const positional = args.filter((a) => a !== '--dry-run' && a !== '--skip-build');
   if (positional.length !== 1 || positional[0] === '-h' || positional[0] === '--help') {
     usage();
     process.exit(positional.length === 1 ? 0 : 1);
@@ -82,19 +85,27 @@ function main() {
   const publishPath = publishPathFor(paperDir);
   if (fs.existsSync(publishPath)) throw new Error(`${rel(publishPath)} already exists. Ask the user before replacing it; nothing was changed.`);
   if (!runCheck(paperDir)) throw new Error('check.mjs failed. Fix the translation before publishing; nothing was changed.');
+  let hugo = null;
+  if (!skipBuild) {
+    try {
+      hugo = ensureHugo(siteRoot(paperDir));
+    } catch (error) {
+      throw new Error(`${error.message}\nNo hugo to test the build, so nothing was published or deleted. Fix that and re-run, or pass --skip-build only if the user accepts publishing without the KaTeX build test.`);
+    }
+  }
 
   const text = fs.readFileSync(mdPath, 'utf8');
   const publishDir = path.dirname(publishPath);
   const newDir = !fs.existsSync(publishDir);
   fs.mkdirSync(publishDir, { recursive: true });
   fs.copyFileSync(mdPath, publishPath);
-  const built = runHugo(siteRoot(paperDir));
+  const built = hugo ? runHugo(siteRoot(paperDir), hugo) : null;
   if (built === false || dryRun) {
     fs.rmSync(publishPath);
     if (newDir) fs.rmdirSync(publishDir);
   }
   if (built === false) throw new Error(`hugo build failed with ${rel(publishPath)} in place (see above; KaTeX errors name the formula). Took the page out again; nothing else was changed.`);
-  if (built === null) console.log('WARN hugo not found; skipped the build test.');
+  if (built === null) console.log('WARN --skip-build: published without the hugo build test; KaTeX errors were not checked.');
 
   const toDelete = walk(paperDir);
   if (!dryRun) {

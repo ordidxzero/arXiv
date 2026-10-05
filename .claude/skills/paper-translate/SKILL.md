@@ -148,7 +148,7 @@ node .claude/skills/paper-translate/scripts/publish.mjs papers/<id>
 
 The script, in order:
 1. runs `check.mjs` and stops if it fails;
-2. places the page at `content/docs/<id>.md` and builds the site in memory with `hugo` — invalid TeX only shows up here, as a KaTeX parse error naming the line and formula. On failure it takes the page out again and changes nothing else: fix the formula in the part file, re-assemble, re-run;
+2. places the page at `content/docs/<id>.md` and builds the site in memory with `hugo` — invalid TeX only shows up here, as a KaTeX parse error naming the line and formula. On failure it takes the page out again and changes nothing else: fix the formula in the part file, re-assemble, re-run. The build needs the theme and a recent enough Hugo, which `ensure-hugo.mjs` sets up on its own: it runs `git submodule update --init` when `themes/<theme>/` is empty, and uses `$HUGO_BIN` or `hugo` on PATH if it meets the theme's `min_version`, else a copy cached in `~/.cache/paper-translate/`, else downloads that version from the Hugo GitHub releases. If none of that works (no network, unsupported platform), the script stops before publishing or deleting anything. Report the error to the user; `--skip-build` publishes without the build test and is only for when the user accepts that KaTeX errors go unchecked;
 3. deletes `papers/<id>/` entirely (`paper.pdf`, `source/`, `tables/`, `work/` with the parts and glossary);
 4. deletes the files in `static/<id>/figures/` that the page doesn't reference.
 
