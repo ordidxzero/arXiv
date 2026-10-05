@@ -723,7 +723,7 @@ function outlineMarkdown(o) {
     const nums = f.items.map((it) => `${f.type} ${it.number}`).join(', ') || `${f.type} (no caption)`;
     L.push(`- **${nums}** — lines ${f.line}–${f.endLine}: ${f.items.map((it) => it.caption).join(' / ')}`);
     for (const img of f.images) L.push(`  - \`${img.tex}\` → ${img.path ? `\`${img.path}\`` : '—'} [${img.status}]`);
-    for (const it of f.items) if (f.type === 'table' && it.imageStatus) L.push(`  - rendered table ${it.number} → ${it.image ? `\`${it.image}\`` : '—'} [${it.imageStatus}]`);
+    for (const it of f.items) if (it.imageStatus) L.push(`  - rendered ${f.type} ${it.number} → ${it.image ? `\`${it.image}\`` : '—'} [${it.imageStatus}]`);
   }
   const loose = o.images.filter((img) => !o.floats.some((f) => f.images.includes(img)));
   if (loose.length) {
@@ -787,24 +787,30 @@ function main() {
   };
   fs.writeFileSync(path.join(workDir, 'outline.json'), `${JSON.stringify(outline, null, 1)}\n`);
 
-  // Tables are shown as crops of the compiled PDF, so they look exactly as TeX typeset them.
+  // Tables, and figures without a usable image file (TikZ/pgfplots, missing, .eps), are shown as crops of the
+  // compiled PDF, so they look exactly as TeX typeset them.
   const pdfPath = path.join(paperDir, 'paper.pdf');
-  if (result.floats.some((f) => f.type === 'table')) {
+  const cropped = result.floats.filter((f) => f.type === 'table' || (f.type === 'figure' && !f.images.some((img) => img.status === 'ok')));
+  if (cropped.length) {
     if (fs.existsSync(pdfPath)) {
       const crop = spawnSync(process.execPath, [path.join(SCRIPT_DIR, 'crop-tables.mjs'), paperDir], { encoding: 'utf8' });
       const tablesPath = path.join(workDir, 'tables.json');
-      const tables = crop.status === 0 && fs.existsSync(tablesPath) ? JSON.parse(fs.readFileSync(tablesPath, 'utf8')) : [];
-      if (crop.status !== 0) warnings.push(`table cropping failed: ${(crop.stderr || '').trim().split('\n').pop()}`);
-      for (const f of result.floats.filter((x) => x.type === 'table')) {
+      const crops = crop.status === 0 && fs.existsSync(tablesPath) ? JSON.parse(fs.readFileSync(tablesPath, 'utf8')) : [];
+      if (crop.status !== 0) warnings.push(`table/figure cropping failed: ${(crop.stderr || '').trim().split('\n').pop()}`);
+      for (const f of cropped) {
         for (const item of f.items) {
-          const t = tables.find((x) => x.number === item.number);
+          const t = crops.find((x) => (x.type ?? 'table') === f.type && x.number === item.number);
           item.image = t?.path ?? null;
           item.imageStatus = t?.status ?? 'not cropped';
-          if (!item.image) warnings.push(`table ${item.number} could not be cropped from paper.pdf — write it as a Markdown table`);
+          if (!item.image) {
+            warnings.push(f.type === 'table'
+              ? `table ${item.number} could not be cropped from paper.pdf — write it as a Markdown table`
+              : `figure ${item.number} has no image file and could not be cropped from paper.pdf — crop it by hand from the PDF page (pdftoppm + convert) or add a note pointing to the page`);
+          }
         }
       }
       fs.writeFileSync(path.join(workDir, 'outline.json'), `${JSON.stringify(outline, null, 1)}\n`);
-    } else warnings.push('paper.pdf not found — tables cannot be cropped; write them as Markdown tables (or download the PDF and re-run)');
+    } else warnings.push('paper.pdf not found — tables and image-less (TikZ) figures cannot be cropped; write tables as Markdown and note the figures (or download the PDF and re-run)');
   }
   fs.writeFileSync(path.join(workDir, 'outline.md'), outlineMarkdown(outline));
 

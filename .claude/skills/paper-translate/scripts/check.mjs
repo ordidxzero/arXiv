@@ -138,8 +138,8 @@ function main() {
   if (outline) {
     const mapped = (p) => seen.has(figuresMap[p]);
     for (const img of outline.images.filter((x) => x.status === 'ok')) if (!mapped(img.path)) warnings.push(`image from source not used: ${img.path} (line ${img.line} of flat.tex)`);
-    for (const f of outline.floats.filter((x) => x.type === 'table'))
-      for (const it of f.items) if (it.image && !mapped(it.image)) warnings.push(`cropped table image not used: ${it.image} — show table ${it.number} as this image`);
+    for (const f of outline.floats.filter((x) => x.type === 'table' || x.type === 'figure'))
+      for (const it of f.items) if (it.image && !mapped(it.image)) warnings.push(`cropped ${f.type} image not used: ${it.image} — show ${f.type} ${it.number} as this image`);
   }
 
   // 5. Every figure/table number has a caption label in Korean.

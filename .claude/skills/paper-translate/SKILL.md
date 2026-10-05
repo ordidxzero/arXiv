@@ -49,6 +49,7 @@ This finds the main `.tex`, inlines every `\input`/`\include`, removes comments 
 | `references.md` | finished reference list in the original language — becomes the last part as is |
 | `macros.tex` | the paper's own macros, to expand inside math |
 | `../tables/table-<N>.png` | each table cropped from `paper.pdf` exactly as TeX rendered it (needs `paper.pdf`) |
+| `../tables/figure-<N>.png` | each figure without a usable image file (TikZ/pgfplots, missing, .eps) cropped from `paper.pdf` |
 
 Exit code 2 means there's no LaTeX source: follow `references/pdf-fallback.md` instead and come back for steps 3–7. If outline.md lists other candidate main files and the chosen one looks wrong (e.g. it's a supplementary-only file), re-run with `--main <file>`.
 
@@ -101,7 +102,7 @@ Translation rules that apply everywhere (details in the reference files):
 - First use of a translated technical term gets the English (and the glossary gloss, if any) in parentheses; follow the glossary.
 - Math, numbers, table data, code, model/dataset names, and author names stay as they are.
 - Headings are not translated: section/subsection/`\paragraph` titles, Abstract, Acknowledgements and References keep the original text and numbering (`## 3 Model Architecture`). Prose, captions and in-text references (`3절`, `그림 2`) are translated as usual.
-- Figures and tables go where their environment is in the source, as `![<what the image shows, in Korean>](<path from outline.md>)` next to a `**그림 N.**`/`**표 N.**` caption paragraph. Tables are the cropped PDF images plus a Korean caption; check each crop by looking at it, and fall back to a Markdown table only when the crop is missing or wrong.
+- Figures and tables go where their environment is in the source, as `![<what the image shows, in Korean>](<path from outline.md>)` next to a `**그림 N.**`/`**표 N.**` caption paragraph. Tables are the cropped PDF images plus a Korean caption; check each crop by looking at it, and fall back to a Markdown table only when the crop is missing or wrong. Figures drawn in TikZ (or whose image file is missing) are cropped from the PDF the same way (`tables/figure-<N>.png`); if that crop is missing or wrong, crop the page by hand as described in `references/latex-to-markdown.md` rather than leaving the figure out.
 - `\cite`, `\ref`, `\eqref` become rendered text (`[12]`, `(Vaswani et al., 2017)`, `그림 3`, `식 (2)`) — never leave raw LaTeX commands in prose.
 - **Plain Markdown in part files.** Math is `$…$` / `$$…$$` with raw TeX inside (no Markdown escaping of `_` or `*`), a literal dollar sign is `\$`, and math in a table cell never uses `|` (use `\vert`, `\mid`, `\lVert`). Don't write `{{< katex >}}`, `{{< image >}}` or `<img>` yourself. Bold or italic next to particles (`**인코더(encoder)**를`, `*연산자 융합(operator fusion)*을`) and `~` ranges (`2~4배`) can be written naturally — assemble fixes how Goldmark renders them.
 
@@ -154,7 +155,7 @@ The script, in order:
 
 If `content/docs/<id>.md` already exists, the script changes nothing — ask the user before replacing it rather than deleting it yourself.
 
-Then tell the user the published path (`content/docs/<id>.md`), how many sections/figures/tables it covers, how many images are left in `static/<id>/figures/`, and anything that couldn't be carried over (e.g. TikZ figures replaced by a note, labels whose numbers had to be read from the PDF). To preview, they can run `hugo server` and open `/<id>/`.
+Then tell the user the published path (`content/docs/<id>.md`), how many sections/figures/tables it covers, how many images are left in `static/<id>/figures/`, and anything that couldn't be carried over (e.g. figures cropped from the PDF by hand or replaced by a note, labels whose numbers had to be read from the PDF). To preview, they can run `hugo server` and open `/<id>/`.
 
 ## Resuming
 

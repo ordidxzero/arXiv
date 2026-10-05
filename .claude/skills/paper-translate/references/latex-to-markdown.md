@@ -87,7 +87,9 @@ Place a figure where its `figure` environment sits in the TeX source (this is th
 - The caption paragraph (`**그림 N.** …`) goes right after the image lines (for tables, right before); assemble uses it as the image's `title`, so keep it adjacent — at most a subfigure-caption paragraph in between.
 - Several images in one figure (subfigures, side-by-side panels): one `![](…)` line per image with no blank line between them (they render side by side when they fit), then subfigure captions as `(a) …`, `(b) …`, then the main caption.
 - One float with two `\caption`s (two figures side by side): emit two separate figure blocks, each with its own number.
-- No usable image (`missing`, `unsupported .eps`, TikZ/pgfplots drawing, `\input{fig.tikz}`): keep the caption and add a one-line note in place of the image: `> *(그림 원본은 TikZ로 작성되어 이미지로 옮기지 않았습니다. 원문 PDF 3쪽 참조.)*`. Find the page by looking at the PDF if it's available.
+- No usable image file (`missing`, `unsupported .eps`, TikZ/pgfplots drawing, `\input{fig.tikz}`): `prepare.mjs` crops the drawing from `paper.pdf` into `tables/figure-<N>.png` (outline.md: "rendered figure N"), everything above the "Figure N:" caption up to the nearest body text. Use it like any other image, `![…](tables/figure-<N>.png)`, after looking at the crop once: it must hold the whole drawing and no caption or body text.
+  - If the crop is wrong or outline.md says `not found`, crop it by hand: render the page (`pdftoppm -f <p> -l <p> -r 200 -png paper.pdf out`), cut the figure out with `convert out-<p>.png -crop WxH+X+Y +repage -trim +repage -bordercolor white -border 20 tables/figure-<N>.png`, look at it, and use that path. `pdftotext -f <p> -l <p> -bbox paper.pdf -` gives the caption's y position in points (× dpi/72 for pixels).
+  - Only when there is no PDF at all, keep the caption and add a one-line note in place of the image: `> *(그림 원본은 TikZ로 작성되어 이미지로 옮기지 않았습니다. 원문 PDF 3쪽 참조.)*`.
 - Translate captions fully, including the parts that describe panels ("Left: …" → "왼쪽: …").
 
 ## Tables

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // Crops each table out of the compiled paper.pdf so the translation can show the table exactly as TeX typeset it.
 // Locates "Table N:" captions and the table's cell text (taken from flat.tex) in the PDF text layer, then grows the
-// box over the rendered pixels to pick up rules. Writes <paper-dir>/tables/table-<N>.png and work/tables.json.
+// box over the rendered pixels to pick up rules. Writes <paper-dir>/tables/table-<N>.png.
+// Figures with no usable image file (TikZ/pgfplots drawings, missing or .eps files) are cropped the same way: the
+// "Figure N:" caption is found and everything above it, up to the nearest line of body text, becomes
+// <paper-dir>/tables/figure-<N>.png. Results for both go to work/tables.json ({ type, number, status, path, page }).
 // Run after prepare.mjs (needs work/outline.json and work/flat.tex). prepare.mjs calls it when paper.pdf exists.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -71,6 +74,63 @@ function segments(items, viewport, scale) {
 }
 
 const overlapX = (a, b) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0;
+
+// A figure sits above its caption. Its region runs from the caption up to the nearest line of body text: a segment
+// that is not drawing text (its words are mostly not in the figure's TeX source) and is long or wide enough to be prose.
+function locateFigure(segs, number, figWords, pageTop) {
+  const capRe = new RegExp(`^\\s*(Figure|FIGURE|Fig\\.)\\s*${number.replace('.', '\\.')}\\s*[:.|]`);
+  const caption = segs.find((s) => capRe.test(s.str));
+  if (!caption) return null;
+  const capBlock = [caption];
+  for (;;) {
+    const last = capBlock[capBlock.length - 1];
+    const next = segs.find((s) => !capBlock.includes(s) && s.top > last.top && s.top - last.bottom < 0.35 * last.h && Math.abs(s.x0 - caption.x0) < last.h);
+    if (!next) break;
+    capBlock.push(next);
+  }
+  const cap = { top: Math.min(...capBlock.map((s) => s.top)), x0: Math.min(...capBlock.map((s) => s.x0)), x1: Math.max(...capBlock.map((s) => s.x1)) };
+  const isProse = (s) => {
+    const w = tokens(s.str);
+    if (w.length && w.filter((t) => figWords.has(t)).length / w.length >= 0.6) return false;
+    return w.length >= 4 || s.x1 - s.x0 > 0.6 * (cap.x1 - cap.x0);
+  };
+  const fence = segs
+    .filter((s) => s.bottom <= cap.top && overlapX(s, cap) && isProse(s))
+    .reduce((best, s) => (best && best.bottom >= s.bottom ? best : s), null);
+  return { top: fence ? fence.bottom + 1 : pageTop, bottom: cap.top - 1, x0: cap.x0, x1: cap.x1, h: caption.h };
+}
+
+// Bounding box of the ink inside the region (the drawing itself), with a small margin; null when the region is blank.
+function inkBox(img, region, scale) {
+  const { data, width, height } = img;
+  const pad = Math.round(2 * region.h);
+  const xa = Math.max(0, Math.floor(region.x0) - pad);
+  const xb = Math.min(width, Math.ceil(region.x1) + pad);
+  const ya = Math.max(0, Math.ceil(region.top));
+  const yb = Math.min(height, Math.floor(region.bottom));
+  let top = -1;
+  let bottom = -1;
+  for (let y = ya; y < yb; y++) {
+    if (inkRow(data, width, y, xa, xb)) {
+      if (top < 0) top = y;
+      bottom = y;
+    }
+  }
+  if (top < 0 || bottom - top < 2 * region.h) return null;
+  let x0 = xb;
+  let x1 = xa;
+  for (let x = xa; x < xb; x++) {
+    if (inkCol(data, width, x, top, bottom + 1)) {
+      x0 = Math.min(x0, x);
+      x1 = x;
+    }
+  }
+  const margin = Math.round(3 * scale);
+  const y0 = Math.max(ya, top - margin);
+  const y1 = Math.min(yb, bottom + margin);
+  const left = Math.max(0, x0 - margin);
+  return { x: left, y: y0, w: Math.min(width, x1 + margin) - left, h: y1 - y0 };
+}
 
 function locate(segs, number, cells) {
   const capRe = new RegExp(`^\\s*(Table|TABLE|Tab\\.)\\s*${number.replace('.', '\\.')}\\s*[:.|]`);
@@ -244,7 +304,7 @@ async function main() {
         if (found) hit = { n, p, found };
       }
       if (!hit) {
-        results.push({ number: item.number, status: 'not found', path: null });
+        results.push({ type: 'table', number: item.number, status: 'not found', path: null });
         console.log(`table ${item.number}: not found in PDF — convert it to a Markdown table instead`);
         continue;
       }
@@ -257,8 +317,38 @@ async function main() {
       const file = path.join(outDir, `table-${item.number}.png`);
       fs.writeFileSync(file, canvas.toBuffer('image/png'));
       const rel = path.relative(paperDir, file).split(path.sep).join('/');
-      results.push({ number: item.number, status: 'ok', path: rel, page: hit.n });
+      results.push({ type: 'table', number: item.number, status: 'ok', path: rel, page: hit.n });
       console.log(`table ${item.number}: page ${hit.n} → ${rel} (${r.w}×${r.h})`);
+    }
+  }
+
+  const needsCrop = (f) => f.type === 'figure' && !f.images.some((img) => img.status === 'ok');
+  for (const float of outline.floats.filter(needsCrop)) {
+    const words = cellTokens(flatLines, float);
+    for (const item of float.items) {
+      let done = false;
+      for (let n = 1; n <= doc.numPages && !done; n++) {
+        const p = await loadPage(n);
+        const region = locateFigure(p.segs, item.number, words, Math.round(p.viewport.height * 0.04));
+        if (!region) continue;
+        await render(p);
+        const r = inkBox(p.img, region, scale);
+        if (!r) continue;
+        const { canvas, context } = doc.canvasFactory.create(r.w, r.h);
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, r.w, r.h);
+        context.drawImage(p.canvas, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+        const file = path.join(outDir, `figure-${item.number}.png`);
+        fs.writeFileSync(file, canvas.toBuffer('image/png'));
+        const rel = path.relative(paperDir, file).split(path.sep).join('/');
+        results.push({ type: 'figure', number: item.number, status: 'ok', path: rel, page: n });
+        console.log(`figure ${item.number}: page ${n} → ${rel} (${r.w}×${r.h})`);
+        done = true;
+      }
+      if (!done) {
+        results.push({ type: 'figure', number: item.number, status: 'not found', path: null });
+        console.log(`figure ${item.number}: not found in PDF — keep the caption and add a note pointing to the PDF page`);
+      }
     }
   }
   fs.writeFileSync(path.join(paperDir, 'work', 'tables.json'), `${JSON.stringify(results, null, 1)}\n`);
