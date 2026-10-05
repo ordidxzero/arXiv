@@ -59,7 +59,7 @@ Skim the abstract, introduction and section titles, then write `work/glossary.md
 
 ### 4. Translate part by part, in order
 
-Read `references/latex-to-markdown.md` and `references/style-guide.md` before the first part.
+Read `references/latex-to-markdown.md`, `references/style-guide.md` and `references/readability.md` before the first part. Writing plain sentences from the start is cheaper than fixing them in step 6.
 
 Write one file per part into `work/parts/`, named so that alphabetical order equals paper order:
 
@@ -138,6 +138,12 @@ Then read `translation.ko.md` once from start to finish as the reader would — 
 
 Fix them in the part files and re-assemble.
 
+**Readability review.** Then have the sentences checked by someone who can't see the English. You read your own Korean through the original, so a tangled sentence looks clear to you; a reader without the original stalls on it. Launch the `translation-reader` agent (`.claude/agents/translation-reader.md`) with the path of `papers/<id>/translation.ko.md` and nothing else — don't pass the source, the glossary, or a summary of the paper. It returns the sentences it couldn't follow in one pass, each with a reason code and what it thought the sentence meant.
+
+For each flagged sentence, open the original paragraph in `flat.tex` and rewrite the sentence in its part file following `references/readability.md`: split it, put the noun first and describe it afterwards, say nominalized terms with a verb, use the plainest correct term. Where the agent's "이해한 뜻" differs from the original, the sentence was not only hard but misleading — fix the meaning first. Every rewrite keeps all content, hedges, numbers and citations of the original (style guide, "What must not change"); a sentence that is hard because the idea is hard gets a short 역주 instead of losing detail. Rewriting may change the same term in other places — update the glossary and keep it consistent.
+
+Re-assemble, re-run `check.mjs` (its sentence-length and `의`-chain warnings should be gone or justified), and run the agent once more on the new file. Stop when what it flags is only genuinely technical content; two rounds are usually enough.
+
 ### 7. Publish and clean up
 
 Only once the check passes and you're done with the source (the check and any comparison with the original need `work/` and `source/`, which this deletes):
@@ -159,4 +165,4 @@ Then tell the user the published path (`content/docs/<id>.md`), how many section
 
 ## Resuming
 
-The part files make the work restartable. If `work/parts/` already has files, read `work/glossary.md` and the last part, then continue from the next unit in outline.md instead of starting over. Once `publish.mjs` has run, the working files are gone; later fixes are made directly in `content/docs/<id>.md`, in the Hugo syntax described in step 5.
+The part files make the work restartable. If `work/parts/` already has files, read `work/glossary.md` and the last part, then continue from the next unit in outline.md instead of starting over. Once `publish.mjs` has run, the working files are gone; later fixes are made directly in `content/docs/<id>.md`, in the Hugo syntax described in step 5. To run the readability review on a published page, run the `translation-reader` agent on `content/docs/<id>.md` and compare rewrites against a fresh download of the source (step 1–2, then delete `papers/<id>/` again).
