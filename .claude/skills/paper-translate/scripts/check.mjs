@@ -3,14 +3,14 @@
 // missing or out of place. Exit code 0 = no errors (warnings may remain), 1 = errors to fix.
 //   content   every numbered section in order, captions for every figure/table, references last, no leftover LaTeX,
 //             no untranslated paragraphs, no section that looks much shorter than the original
-//   hugo      front matter (title, linkTitle, url "/<id>/"), no H1 in the body, figures as {{< image >}} served from
+//   hugo      front matter (title, linkTitle, url "/<id>/", categories), no H1 in the body, figures as {{< image >}} served from
 //             static/<id>/figures/, math as {{< katex >}}, no relative links, Goldmark bold/~ fixes applied
 //   style     (warnings) paragraphs with many long inline glosses, idioms translated word for word, sentences that
 //             are too long or stack "의"
 import fs from 'node:fs';
 import path from 'node:path';
 import { fixMarkdown } from './markdown-fixes.mjs';
-import { imageShortcodes, paperIdOf, rawLocalRefs, resolveRef } from './hugo-site.mjs';
+import { imageShortcodes, paperIdOf, rawLocalRefs, resolveRef, siteRoot } from './hugo-site.mjs';
 
 function usage() {
   console.log('Usage: check.mjs <paper-dir> [--file translation.ko.md] [--ratios]');
@@ -66,15 +66,28 @@ function main() {
     const meta = {};
     for (const line of fm[1].split('\n').filter((l) => l.trim())) {
       const kv = line.match(/^(\w+):\s*"((?:[^"\\]|\\.)*)"\s*$/);
+      const list = line.match(/^(categories):\s*\[((?:\s*"[^"]+"\s*,?)*)\]\s*$/);
       if (kv) meta[kv[1]] = kv[2];
-      else errors.push(`front matter line must be key: "value" (double-quoted): ${line}`);
+      else if (list) meta.categories = [...list[2].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+      else errors.push(`front matter line must be key: "value" (double-quoted), or categories: ["…"]: ${line}`);
     }
     if (!meta.title?.trim()) errors.push('front matter title is missing (the original paper title)');
     if (!meta.linkTitle?.trim()) errors.push('front matter linkTitle is missing (short name shown in the sidebar)');
     // The slashes matter: Hugo treats "2309.06180" as a file with extension ".06180" and writes a file of that
     // name, which collides with the static/<id>/figures/ directory and drops the page from the build.
     if (meta.url !== `/${id}/`) errors.push(`front matter url must be the arXiv ID with slashes: url: "/${id}/". Found: ${meta.url ?? '(missing)'}`);
-    for (const key of Object.keys(meta)) if (!['title', 'linkTitle', 'url'].includes(key)) warnings.push(`unexpected front matter key: ${key}`);
+    // categories groups the paper on the list page (content/docs/_index.md). Reuse an existing category when one fits.
+    const docsDir = path.join(siteRoot(paperDir), 'content', 'docs');
+    const existing = new Set();
+    for (const f of fs.existsSync(docsDir) ? fs.readdirSync(docsDir) : []) {
+      if (!f.endsWith('.md') || f === '_index.md' || f === `${id}.md`) continue;
+      const m = fs.readFileSync(path.join(docsDir, f), 'utf8').match(/^categories:\s*\[(.*)\]\s*$/m);
+      for (const c of m ? m[1].matchAll(/"([^"]+)"/g) : []) existing.add(c[1]);
+    }
+    const known = existing.size ? ` Existing categories: ${[...existing].map((c) => `"${c}"`).join(', ')}` : '';
+    if (!meta.categories?.length) errors.push(`front matter categories is missing — add categories: ["<field>"] so the paper is grouped on the list page.${known}`);
+    else for (const c of meta.categories) if (existing.size && !existing.has(c)) warnings.push(`new category "${c}" — fine if no existing one fits.${known}`);
+    for (const key of Object.keys(meta)) if (!['title', 'linkTitle', 'url', 'categories'].includes(key)) warnings.push(`unexpected front matter key: ${key}`);
   }
 
   const headings = [];

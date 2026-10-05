@@ -78,6 +78,7 @@ work/parts/ZZ-references.md     copy of work/references.md
 title: "Attention Is All You Need"
 linkTitle: "Transformer"
 url: "/1706.03762/"
+categories: ["자연어 처리 모델"]
 ---
 
 Ashish Vaswani (Google Brain), Noam Shazeer (Google Brain), …
@@ -88,6 +89,7 @@ Ashish Vaswani (Google Brain), Noam Shazeer (Google Brain), …
 - `title`: the original paper title, untranslated, cleaned of `\\` and `\thanks`.
 - `linkTitle`: the short name shown in the sidebar — the method/model/system name the paper introduces, or a shortened title if there is none.
 - `url`: the ID wrapped in slashes, `"/<id>/"`. Without the slashes Hugo reads `.03762` as a file extension, writes a file with that name, and it collides with the `static/<id>/figures/` folder so the page disappears from the build.
+- `categories`: the field the paper belongs to, as a list — usually one entry, two only if it truly belongs to both. It groups the paper on the list page (`content/docs/_index.md`, which renders every paper with the `paper-list` shortcode, so the list never needs editing by hand). Reuse an existing category whenever one fits — `grep -h '^categories' content/docs/*.md` lists them, and `check.mjs` prints them too — and create a new one only for a field none of them covers. Name it in Korean, short, with `·` between two related topics (`LLM 서빙·KV 캐시`).
 - Every value is double-quoted (titles often contain `:`); don't use `"` inside a value. No other keys.
 
 For each part: read its line range of `flat.tex` (from outline.md), translate everything in that range in the order it appears — paragraphs, display math, figure and table environments, footnotes — and write the part file. Skip the bibliography row in the outline; the references come from `references.md`.
@@ -128,7 +130,7 @@ Fix things in the part files and re-assemble; `translation.ko.md` is overwritten
 node .claude/skills/paper-translate/scripts/check.mjs papers/<id>
 ```
 
-It verifies the content — every numbered section has a heading in the right order, every figure/table number has a caption, the references section comes last, no raw LaTeX is left in prose, no long paragraph is still in English, no section looks much shorter than the original — and the Hugo rendering: front matter (`title`, `linkTitle`, `url: "/<id>/"`), no H1 in the body, images as shortcodes whose files exist in `static/<id>/figures/`, no relative links, no leftover `$`, katex tags paired, no `|` inside math in a table row, bold/`~` fixes applied. Fix each ERROR in the relevant part file, re-assemble, and re-run until it prints `OK`. Look at WARN lines too — an unused image usually means a figure was skipped, and the readability warnings (gloss pile-ups, translationese) point at sentences to rewrite.
+It verifies the content — every numbered section has a heading in the right order, every figure/table number has a caption, the references section comes last, no raw LaTeX is left in prose, no long paragraph is still in English, no section looks much shorter than the original — and the Hugo rendering: front matter (`title`, `linkTitle`, `url: "/<id>/"`, `categories`), no H1 in the body, images as shortcodes whose files exist in `static/<id>/figures/`, no relative links, no leftover `$`, katex tags paired, no `|` inside math in a table row, bold/`~` fixes applied. Fix each ERROR in the relevant part file, re-assemble, and re-run until it prints `OK`. Look at WARN lines too — an unused image usually means a figure was skipped, and the readability warnings (gloss pile-ups, translationese) point at sentences to rewrite.
 
 Then read `translation.ko.md` once from start to finish as the reader would — the check can't see the problems that only show up across sections:
 - a symbol whose meaning changes, or two symbols for one quantity, with no 역주 where it happens (compare against the notation table);

@@ -40,6 +40,7 @@ markup:
 
 taxonomies:
   tag: tags
+  category: categories
 
 params:
   # (Optional, default light) Sets color theme: light, dark or auto.

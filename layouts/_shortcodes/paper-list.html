@@ -1,0 +1,26 @@
+{{- /* Lists every translated paper in content/docs/, grouped by the `categories` front matter.
+       Papers without a category are listed last under "기타". A paper with several categories appears in each. */ -}}
+{{- $papers := where (site.GetPage "/docs").RegularPages "Params.url" "!=" nil -}}
+{{- $papers = sort $papers "File.BaseFileName" "desc" -}}
+<p>번역한 논문 {{ len $papers }}편 · 분야별로 묶었습니다. 같은 분야 안에서는 최신 arXiv 번호 순입니다.</p>
+{{- define "partials/paper-list-item" -}}
+{{- $id := .File.BaseFileName -}}
+<li>
+  <a href="{{ .RelPermalink }}"><strong>{{ .LinkTitle }}</strong></a>
+  <small>· <a href="https://arxiv.org/abs/{{ $id }}" target="_blank" rel="noopener">arXiv {{ $id }}</a></small><br>
+  <span>{{ .Title }}</span>
+</li>
+{{- end -}}
+{{- range $name, $_ := site.Taxonomies.categories }}
+{{- $term := site.GetPage (printf "/categories/%s" $name) }}
+<h2>{{ with $term }}{{ .Title }}{{ else }}{{ $name }}{{ end }}</h2>
+<ul>
+{{- range $papers }}{{ if in .Params.categories ($term.Title | default $name) }}{{ partial "paper-list-item" . }}{{ end }}{{ end }}
+</ul>
+{{- end }}
+{{- $rest := slice }}
+{{- range $papers }}{{ if not .Params.categories }}{{ $rest = $rest | append . }}{{ end }}{{ end }}
+{{- with $rest }}
+<h2>기타</h2>
+<ul>{{ range . }}{{ partial "paper-list-item" . }}{{ end }}</ul>
+{{- end }}
