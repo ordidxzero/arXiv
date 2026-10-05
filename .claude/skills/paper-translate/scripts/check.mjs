@@ -5,7 +5,8 @@
 //             no untranslated paragraphs, no section that looks much shorter than the original
 //   hugo      front matter (title, linkTitle, url "/<id>/"), no H1 in the body, figures as {{< image >}} served from
 //             static/<id>/figures/, math as {{< katex >}}, no relative links, Goldmark bold/~ fixes applied
-//   style     (warnings) paragraphs with many long inline glosses, idioms translated word for word
+//   style     (warnings) paragraphs with many long inline glosses, idioms translated word for word, sentences that
+//             are too long or stack "의"
 import fs from 'node:fs';
 import path from 'node:path';
 import { fixMarkdown } from './markdown-fixes.mjs';
@@ -297,6 +298,35 @@ function main() {
     }
   });
   if (idioms > 15) warnings.push(`… ${idioms - 15} more translationese expressions`);
+
+  // 12. Sentence readability (warnings only, see references/readability.md): sentences that are too long, and noun
+  // phrases built from a chain of "의". The translation-reader agent (SKILL.md step 6) judges the rest.
+  const SENTENCE_MAX = 90;
+  const UI_CHAIN = 3;
+  let hard = 0;
+  let sentenceStart = 0;
+  const flushParagraph = (end) => {
+    if (sentenceStart + 1 >= bodyEnd || sentenceStart + 1 < bodyStart) return;
+    const para = proseLines.slice(sentenceStart, end).join(' ');
+    if (/^\s*(>|\*\*(그림|표) \d|\[\d+\]|#)/.test(para)) return; // 역주, captions, references, headings
+    for (const s of para.split(/(?<=다\.)\s+/)) {
+      const hangul = (s.replace(/\([^()]*\)/g, '').match(/[가-힣]/g) || []).length;
+      const ui = (s.match(/[가-힣]의\s/g) || []).length;
+      const head = `line ${sentenceStart + 1}: "${s.trim().slice(0, 30)}…"`;
+      let msg = null;
+      if (hangul > SENTENCE_MAX) msg = `${hangul} Hangul characters in one sentence — split it`;
+      else if (ui >= UI_CHAIN) msg = `${ui}× "의" in one sentence — turn part of the noun phrase into a clause`;
+      if (msg && ++hard <= 20) warnings.push(`${head} ${msg}`);
+    }
+  };
+  proseLines.forEach((l, i) => {
+    if (!l.trim()) {
+      flushParagraph(i);
+      sentenceStart = i + 1;
+    }
+  });
+  flushParagraph(proseLines.length);
+  if (hard > 20) warnings.push(`… ${hard - 20} more hard sentences (run the translation-reader agent, see SKILL.md step 6)`);
 
   const hangulTotal = (md.match(/[가-힣]/g) || []).length;
   console.log(`Checked ${path.relative(process.cwd(), mdPath)}: ${lines.length} lines, ${headings.length} headings, ${seen.size} images, ${mathCount} math, ${hangulTotal} Hangul characters`);
