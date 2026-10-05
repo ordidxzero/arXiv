@@ -116,7 +116,7 @@ Tables are shown as images cropped from the compiled `paper.pdf`, so numbers, al
 
 ## Algorithms, code, lists, theorems, footnotes
 
-- `algorithm`/`algorithmic`: a caption line `**알고리즘 1.** …` followed by a fenced code block in pseudo-code, keeping the line structure and math; translate comments and natural-language steps (`\Require` → `입력:`, `\Ensure` → `출력:`, `\For` → `for`, keep keywords in English).
+- `algorithm`/`algorithmic`: an image cropped from `paper.pdf`, like a table — never a fenced code block, because math inside a code block is shown as raw `$…$` TeX instead of being rendered. Write the caption line `**알고리즘 1.** …` (translated), a blank line, then `![<what it computes, in Korean>](tables/algorithm-1.png)`. Crop it by hand the same way as a figure (see Figures: `pdftoppm` the page, find the "Algorithm N" header and the last line with `pdftotext -bbox`, `convert -crop … -trim … -border 20`), starting just below the "Algorithm N: title" line so the English caption is left out, and look at the result. Explain the steps a reader would stall on in a `> **역주.**` block after it, citing the line numbers printed in the image.
 - `verbatim`/`lstlisting`/`minted`: fenced code block, contents unchanged.
 - `itemize` → `-`, `enumerate` → `1.`, `description` → `- **용어**: 설명`.
 - `theorem`/`lemma`/`definition`/`proof`: `**정리 1 (Theorem 1).** …`, proof as `*증명.* … ∎`. Name in parentheses (`\begin{theorem}[Universal approximation]`) → `**정리 1 (보편 근사).**`.
