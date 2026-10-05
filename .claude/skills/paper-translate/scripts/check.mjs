@@ -309,7 +309,7 @@ function main() {
     if (sentenceStart + 1 >= bodyEnd || sentenceStart + 1 < bodyStart) return;
     const para = proseLines.slice(sentenceStart, end).join(' ');
     if (/^\s*(>|\*\*(그림|표) \d|\[\d+\]|#)/.test(para)) return; // 역주, captions, references, headings
-    for (const s of para.split(/(?<=다\.)\s+/)) {
+    for (const s of para.split(/(?<=(?:다|\]|\)|\*|[①-⑳])\.\*?)\s+/)) {
       const hangul = (s.replace(/\([^()]*\)/g, '').match(/[가-힣]/g) || []).length;
       const ui = (s.match(/[가-힣]의\s/g) || []).length;
       const head = `line ${sentenceStart + 1}: "${s.trim().slice(0, 30)}…"`;
