@@ -157,6 +157,12 @@ function main() {
   const opens = md.match(/\{\{<\s*katex\b[^>]*>\}\}/g) ?? [];
   const closes = md.match(/\{\{<\s*\/katex\s*>\}\}/g) ?? [];
   if (opens.length !== closes.length) errors.push(`katex shortcode: ${opens.length} opening vs ${closes.length} closing tags`);
+  // Counts can balance while one katex sits inside another (a `$` inside $$…$$); that renders as raw text.
+  let depth = 0;
+  for (const m of md.matchAll(/\{\{<\s*(\/?)katex\b[^>]*>\}\}/g)) {
+    if (m[1]) depth = Math.max(0, depth - 1);
+    else if (++depth > 1) errors.push(`line ${lineOf(m.index)}: katex shortcode nested inside another — a $ inside $$…$$ (e.g. \\text{ctx$=$2048}); write \\text{ctx}=2048 instead`);
+  }
   let mathCount = 0;
   for (const m of md.matchAll(KATEX)) {
     const [raw, rawArgs, body] = m;

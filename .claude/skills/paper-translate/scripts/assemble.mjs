@@ -45,18 +45,35 @@ function protectCode(text) {
   return { out, restore: (s) => s.replace(/(\d+)/g, (m, i) => saved[i]) };
 }
 
+// `\text{ctx$=$2048}` switches back to math with `$` inside \text; rewrite it as
+// `\text{ctx}=2048` style by closing \text around each $…$ run (KaTeX rejects a bare `$` here).
+function textMathDollars(tex) {
+  return tex.replace(/\\text\{((?:[^{}]|\{[^{}]*\})*)\}/g, (m, body) =>
+    body.includes('$')
+      ? body
+          .split(/(?<!\\)\$/)
+          .map((part, i) => (i % 2 ? part : part ? `\\text{${part}}` : ''))
+          .join('')
+      : m,
+  );
+}
+
 function convertMath(text) {
   let display = 0;
   let inline = 0;
+  // Display blocks are held out while inline math is converted, so a `$` inside a display
+  // formula (e.g. `\text{ctx$=$2048}`) is never turned into a nested inline shortcode.
+  const blocks = [];
   const out = text
     .replace(/(?<!\\)\$\$([\s\S]+?)(?<!\\)\$\$/g, (m, tex) => {
       display++;
-      return `{{< katex display=true >}}\n${tex.trim()}\n{{< /katex >}}`;
+      return `\u0000D${blocks.push(textMathDollars(tex.trim())) - 1}\u0000`;
     })
     .replace(/(?<![\\$])\$(?!\$)((?:\\.|[^$\\\n])+?)\$(?!\$)/g, (m, tex) => {
       inline++;
       return `{{< katex >}}${tex.trim()}{{< /katex >}}`;
-    });
+    })
+    .replace(/\u0000D(\d+)\u0000/g, (m, i) => `{{< katex display=true >}}\n${blocks[i]}\n{{< /katex >}}`);
   return { out, display, inline };
 }
 

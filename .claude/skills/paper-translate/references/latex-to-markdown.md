@@ -42,6 +42,7 @@ Use the numbers from `work/outline.md` instead of re-counting. Inline math in a 
 - `align`/`eqnarray`/`gather` → one `$$` block wrapping `\begin{aligned} … \end{aligned}` (`gathered` for gather). `eqnarray`'s `&=&` becomes `&=`. Multiple numbered rows: put each row's `\tag{n}` at the end of the row before `\\`.
 - Expand paper-specific macros using `work/macros.tex` (e.g. `\vx` → `\mathbf{x}`, `\R` → `\mathbb{R}`), because renderers don't know them. Standard LaTeX/AMS commands stay as they are.
 - Replace commands KaTeX doesn't support: `\bm{x}`/`\boldsymbol` → `\boldsymbol{x}` (KaTeX supports it) but `\mathbbm` → `\mathbb`, `\nicefrac{a}{b}` → `a/b`, `\textsc{x}` → `\text{x}`. `\text{...}` content inside math stays in English unless it is a full natural-language phrase.
+- Never put `$` inside a formula. LaTeX sources often switch back to math inside `\text{}` (`\text{H100 ctx${=}2048$ speedup}`); close the `\text` instead: `\text{H100 ctx}{=}2048\ \text{speedup}`. A stray `$` inside `$$…$$` breaks the shortcode (assemble rewrites the common `\text{…$…$…}` case, and check reports any nested katex).
 - Never translate variable names, operators, or subscripts like `_{\text{model}}`.
 
 ## Citations and cross-references
