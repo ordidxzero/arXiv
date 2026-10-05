@@ -89,6 +89,10 @@ function convertImages(text, paperDir) {
   const blockText = (b) => lines.slice(b.start, b.end + 1).join(' ');
   const hasImage = (b) => /!\[[^\]]*\]\(/.test(blockText(b));
   const captionFor = (bi) => {
+    // Table captions sit above their image; take that one before looking ahead, or a table image
+    // directly followed by the next table's caption would get the wrong title.
+    const above = blocks[bi - 1] && blockText(blocks[bi - 1]);
+    if (above && /^\*\*표\s/.test(above) && CAPTION.test(above)) return above;
     for (let j = bi + 1; j < Math.min(blocks.length, bi + 5); j++) {
       const t = blockText(blocks[j]);
       if (/^#/.test(t) || hasImage(blocks[j])) break;
