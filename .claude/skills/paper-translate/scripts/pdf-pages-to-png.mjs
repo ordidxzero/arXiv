@@ -1,14 +1,10 @@
 #!/usr/bin/env node
 // Renders selected PDF pages to PNG (PDF mode: figures have no separate image files).
-// Reuses the pdf-to-img install that the arxiv-download skill manages.
+// Reuses the pdf-to-img install that the arxiv-download skill manages (installed on first use).
 import fs from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-
-const ARXIV_SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../arxiv-download');
-const PDF_TO_IMG = path.join(ARXIV_SKILL, 'node_modules/pdf-to-img/dist/index.js');
+import { pathToFileURL } from 'node:url';
+import { ensurePdfDeps, PDF_TO_IMG } from '../../arxiv-download/scripts/pdf-deps.mjs';
 
 function usage() {
   console.log('Usage: pdf-pages-to-png.mjs <pdf-file> --pages 3,5-7 [--out DIR] [--scale N]');
@@ -40,10 +36,7 @@ async function main() {
   const scale = Number(argValue(args, '--scale', '2')) || 2;
   const pages = parsePages(argValue(args, '--pages', ''));
 
-  if (!existsSync(PDF_TO_IMG)) {
-    const result = spawnSync('npm', ['install', '--no-save', 'pdf-to-img', '@napi-rs/canvas'], { cwd: ARXIV_SKILL, stdio: 'inherit' });
-    if (result.status !== 0) throw new Error('npm install failed');
-  }
+  await ensurePdfDeps();
   const { pdf } = await import(pathToFileURL(PDF_TO_IMG).href);
   const document = await pdf(pdfPath, { scale });
   await fs.mkdir(outDir, { recursive: true });

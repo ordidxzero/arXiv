@@ -1,0 +1,9 @@
+{
+  "name": "arxiv-download-skill",
+  "private": true,
+  "description": "PDF rendering packages for the arxiv-download and paper-translate skill scripts (installed on first use by scripts/pdf-deps.mjs).",
+  "dependencies": {
+    "@napi-rs/canvas": "1.0.0",
+    "pdf-to-img": "6.0.0"
+  }
+}

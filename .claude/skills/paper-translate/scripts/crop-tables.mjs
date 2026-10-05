@@ -8,10 +8,8 @@
 // Run after prepare.mjs (needs work/outline.json and work/flat.tex). prepare.mjs calls it when paper.pdf exists.
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-
-const ARXIV_MODULES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../arxiv-download/node_modules');
-const PDFJS = path.join(ARXIV_MODULES, 'pdfjs-dist/legacy/build/pdf.mjs');
+import { pathToFileURL } from 'node:url';
+import { ensurePdfDeps, MODULES as ARXIV_MODULES, PDFJS } from '../../arxiv-download/scripts/pdf-deps.mjs';
 
 function usage() {
   console.log('Usage: crop-tables.mjs <paper-dir> [--scale N] [--with-caption]');
@@ -255,10 +253,7 @@ async function main() {
     console.error(`No ${pdfPath}; download the PDF with arxiv-download --pdf first.`);
     process.exit(2);
   }
-  if (!fs.existsSync(PDFJS)) {
-    console.error('pdfjs-dist is missing; run any arxiv-download figure conversion once to install it.');
-    process.exit(2);
-  }
+  await ensurePdfDeps();
 
   const pdfjs = await import(pathToFileURL(PDFJS).href);
   const doc = await pdfjs.getDocument({

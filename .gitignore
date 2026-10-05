@@ -1,3 +1,5 @@
 public/
 resources/
 .hugo_build.lock
+# npm packages of skill scripts, installed on first use (versions pinned by package-lock.json)
+node_modules/

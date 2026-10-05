@@ -34,5 +34,5 @@ node .claude/skills/arxiv-download/scripts/source-pdfs-to-png.mjs ./papers/2506.
 - `--out` sets the base directory; paper folders are created under it.
 - Source downloads try `e-print` first, then `src` as a fallback, and are extracted into `source/`.
 - Figure PDFs are auto-converted to PNG after source extraction when PDFs exist in `source/`.
-- `scripts/figure-pdf-to-png.mjs` installs `pdf-to-img` (and `@napi-rs/canvas`) with npm only when missing, inside `.claude/skills/arxiv-download/`. Default scale is 4.
+- `scripts/figure-pdf-to-png.mjs` renders with `pdf-to-img` and `@napi-rs/canvas`. These npm packages are not committed (`node_modules/` is gitignored); their versions are pinned by `package.json` + `package-lock.json` in `.claude/skills/arxiv-download/`, and `scripts/pdf-deps.mjs` installs them with `npm ci` the first time they fail to load (the paper-translate scripts use the same install). Default scale is 4.
 - Use `scripts/source-pdfs-to-png.mjs` to scan a source tree, and `scripts/figure-pdf-to-png.mjs` to convert one PDF.

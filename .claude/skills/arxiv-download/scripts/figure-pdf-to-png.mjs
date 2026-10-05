@@ -1,42 +1,8 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-
-const SKILL_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-
-// pdf-to-img needs @napi-rs/canvas built for this platform (pdfjs takes DOMMatrix from it). When the import fails,
-// install the packages and re-run this script in a fresh process: Node caches a module whose evaluation threw
-// (e.g. "ReferenceError: DOMMatrix is not defined"), so importing it again in this process would fail the same way.
-async function ensureInstalled() {
-  if (await hasPdfToImg()) return;
-  if (process.env.FIGURE_PDF_TO_PNG_RETRY) {
-    throw new Error('pdf-to-img still fails to load after npm install (see the error above).');
-  }
-  const result = spawnSync('npm', ['install', '--no-save', 'pdf-to-img', '@napi-rs/canvas'], {
-    cwd: SKILL_DIR,
-    stdio: 'inherit',
-  });
-  if (result.status !== 0) {
-    throw new Error('npm install failed');
-  }
-  const rerun = spawnSync(process.execPath, process.argv.slice(1), {
-    stdio: 'inherit',
-    env: { ...process.env, FIGURE_PDF_TO_PNG_RETRY: '1' },
-  });
-  process.exit(rerun.status ?? 1);
-}
-
-async function hasPdfToImg() {
-  try {
-    await import('pdf-to-img');
-    return true;
-  } catch (err) {
-    if (process.env.FIGURE_PDF_TO_PNG_RETRY) console.error(err?.stack || err);
-    return false;
-  }
-}
+import { pathToFileURL } from 'node:url';
+import { ensurePdfDeps, PDF_TO_IMG } from './pdf-deps.mjs';
 
 function usage() {
   console.log('Usage: figure-pdf-to-png.mjs <pdf-file> [--out FILE] [--scale N]');
@@ -58,8 +24,8 @@ async function main() {
   const outPath = path.resolve(argValue(args, '--out', pdfPath.replace(/\.pdf$/i, '.png')));
   const scale = Number(argValue(args, '--scale', '4')) || 4;
 
-  await ensureInstalled();
-  const { pdf } = await import('pdf-to-img');
+  await ensurePdfDeps();
+  const { pdf } = await import(pathToFileURL(PDF_TO_IMG).href);
   const document = await pdf(pdfPath, { scale });
   const image = await document.getPage(1);
 
