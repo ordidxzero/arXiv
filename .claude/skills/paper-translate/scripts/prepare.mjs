@@ -545,7 +545,7 @@ function scan(flat, ctx) {
     }
   };
 
-  const TOKEN_RE = /\\(chapter|section|subsection|subsubsection|paragraph)(?![a-zA-Z])(\*?)|\\(appendix|label|caption|includegraphics|begin|end|bibliography|printbibliography|nonumber|notag|tag|setcounter|renewcommand)(?![a-zA-Z])\*?|\\\\/g;
+  const TOKEN_RE = /\\(chapter|section|subsection|subsubsection|paragraph)(?![a-zA-Z])(\*?)|\\(appendices|appendix|label|caption|includegraphics|begin|end|bibliography|printbibliography|nonumber|notag|tag|setcounter|renewcommand)(?![a-zA-Z])\*?|\\\\/g;
   TOKEN_RE.lastIndex = docStart;
   let m;
   while ((m = TOKEN_RE.exec(flat)) && m.index < docEnd) {
@@ -577,6 +577,7 @@ function scan(flat, ctx) {
     }
     switch (m[3]) {
       case 'appendix':
+      case 'appendices': // IEEEtran
         if (!inAppendix) marks.appendixLine = line;
         inAppendix = true;
         counters.set(hasChapter ? 'chapter' : 'section', 0);

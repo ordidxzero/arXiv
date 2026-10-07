@@ -130,8 +130,17 @@ function inkBox(img, region, scale) {
   return { x: left, y: y0, w: Math.min(width, x1 + margin) - left, h: y1 - y0 };
 }
 
+function roman(n) {
+  const digits = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+  let out = '';
+  for (const [v, r] of digits) while (n >= v) { out += r; n -= v; }
+  return out;
+}
+
 function locate(segs, number, cells) {
-  const capRe = new RegExp(`^\\s*(Table|TABLE|Tab\\.)\\s*${number.replace('.', '\\.')}\\s*[:.|]`);
+  // IEEE templates number tables in Roman numerals ("TABLE IV:").
+  const num = /^\d+$/.test(number) ? `(?:${number}|${roman(Number(number))})` : number.replace('.', '\\.');
+  const capRe = new RegExp(`^\\s*(Table|TABLE|Tab\\.)\\s*${num}\\s*[:.|]`);
   const caption = segs.find((s) => capRe.test(s.str));
   if (!caption) return null;
   const isCell = (s) => {
