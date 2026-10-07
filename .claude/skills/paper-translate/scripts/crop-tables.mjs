@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Crops each table out of the compiled paper.pdf so the translation can show the table exactly as TeX typeset it.
-// Locates "Table N:" captions and the table's cell text (taken from flat.tex) in the PDF text layer, then grows the
+// Locates "Table N:" (or "Table N Caption…", as in classes that set the label apart) captions and the table's cell text (taken from flat.tex) in the PDF text layer, then grows the
 // box over the rendered pixels to pick up rules. Writes <paper-dir>/tables/table-<N>.png.
 // Figures with no usable image file (TikZ/pgfplots drawings, missing or .eps files) are cropped the same way: the
 // "Figure N:" caption is found and everything above it, up to the nearest line of body text, becomes
@@ -76,7 +76,7 @@ const overlapX = (a, b) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0;
 // A figure sits above its caption. Its region runs from the caption up to the nearest line of body text: a segment
 // that is not drawing text (its words are mostly not in the figure's TeX source) and is long or wide enough to be prose.
 function locateFigure(segs, number, figWords, pageTop) {
-  const capRe = new RegExp(`^\\s*(Figure|FIGURE|Fig\\.)\\s*${number.replace('.', '\\.')}\\s*[:.|]`);
+  const capRe = new RegExp(`^\\s*(Figure|FIGURE|Fig\\.)\\s*${number.replace('.', '\\.')}(?:\\s*[:.|]|\\s+(?=[A-Z]))`);
   const caption = segs.find((s) => capRe.test(s.str));
   if (!caption) return null;
   const capBlock = [caption];
@@ -140,7 +140,7 @@ function roman(n) {
 function locate(segs, number, cells) {
   // IEEE templates number tables in Roman numerals ("TABLE IV:").
   const num = /^\d+$/.test(number) ? `(?:${number}|${roman(Number(number))})` : number.replace('.', '\\.');
-  const capRe = new RegExp(`^\\s*(Table|TABLE|Tab\\.)\\s*${num}\\s*[:.|]`);
+  const capRe = new RegExp(`^\\s*(Table|TABLE|Tab\\.)\\s*${num}(?:\\s*[:.|]|\\s+(?=[A-Z]))`);
   const caption = segs.find((s) => capRe.test(s.str));
   if (!caption) return null;
   const isCell = (s) => {
